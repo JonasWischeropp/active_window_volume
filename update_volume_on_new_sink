@@ -1,0 +1,20 @@
+#!/bin/bash
+
+storage_path="$HOME/.volume"
+
+[ -d "$storage_path" ] || mkdir "$storage_path" -p
+
+regex="Event 'new' on sink-input #([0-9]+)" 
+while read -r line; do 
+	if [[ $line =~ $regex ]]; then
+		index=${BASH_REMATCH[1]}
+		app_name=$(get_binary_name_from_index $index)
+		if [ $? == 0 ]; then
+			percent=$(cat "$storage_path/$app_name")
+			pacmd set-sink-input-volume $index $(($percent * 66535 / 100))
+			[ $? == 0 ] && echo "Updated volume of $app_name to $percent%"
+		else
+			echo "No program found with index \"$index\""
+		fi
+	fi
+done < <(pactl subscribe)

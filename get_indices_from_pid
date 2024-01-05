@@ -1,0 +1,37 @@
+#!/bin/bash
+
+if [ $# != 1 ]; then 
+	echo -e "usage: $0 PID [PID...]"
+	exit 1
+fi
+pid=$1
+
+regex_index="index: ([0-9]+)"
+regex_pid="application.process.id = \"([0-9]+)\""
+search_pid=false
+found=false
+
+while read line; do
+	if [ $search_pid = true ]; then
+		if [[ $line =~ $regex_pid ]]; then
+			found_pid="${BASH_REMATCH[1]}"
+			for current_pid in $pid; do
+				if [ $current_pid = $found_pid ]; then
+					echo $index
+					found=true
+				fi 
+			done
+			search_pid=false
+		fi 
+	else
+		if [[ $line =~ $regex_index ]]; then
+			index="${BASH_REMATCH[1]}"
+			search_pid=true
+		fi
+	fi
+done < <(pacmd list-sink-inputs)
+
+if [ $found = false ]; then
+	echo "No sink found with the given PID"
+	exit 2
+fi

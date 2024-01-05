@@ -1,0 +1,48 @@
+#!/bin/bash
+
+storage_path="$HOME/.volume"
+
+[ -d "$storage_path" ] || mkdir "$storage_path" -p
+
+regex="^([\+\-]?)([0-9.]+%?)$"
+if [ $# != 1 ] || [[ ! $1 =~ $regex ]]; then 
+	echo -e "usage: $0 [+|-]PERCENTAGE"
+	exit 1
+fi
+
+if [ "${BASH_REMATCH[1]}" != "" ]; then
+	relative=true
+else 
+	relative=false
+fi
+
+pid=$(xdotool getwindowfocus getwindowpid)
+pids="$pid $(pgrep -P $pid)"
+app_name="$(ps -p $pid o comm=)"
+
+indices=$(get_indices_from_pid "$pids")
+if [ $? != 0 ]; then
+	echo "The current window has no audio"
+	exit 1
+fi
+
+file="$storage_path/$app_name"
+if [ -f "$file" ]; then
+	volume=$(cat "$file")
+else 
+	touch "$file"
+	volume=100
+fi
+if [ $relative == true ]; then 
+	volume=$(($volume + $1))
+else 
+	volume=$1
+fi
+if [ $volume -lt 0 ]; then 
+	volume=0
+fi
+for index in $indices; do
+	pacmd set-sink-input-volume "$index" $(($volume * 65536 / 100))
+done
+echo $volume > "$file"
+echo $volume
